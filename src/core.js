@@ -40,7 +40,13 @@ var jQuery = function( selector, context ) {
 
 	// For matching the engine and version of the browser
 	browserMatch,
-	
+
+	// Should require integration be used?
+	useRequire = !!( typeof require !== "undefined" && require.def ),
+
+	// require could have page load logic built in so remember its function
+	requireReadyCallback = useRequire && require.callReady,
+
 	// Has the ready events already been bound?
 	readyBound = false,
 	
@@ -236,15 +242,24 @@ jQuery.fn = jQuery.prototype = {
 		// Attach the listeners
 		jQuery.bindReady();
 
-		// If the DOM is already ready
-		if ( jQuery.isReady ) {
+		// If the DOM is already ready, and if require is in use
+                // all scripts have finished loading
+		if ( jQuery.isReady && ( !useRequire || require.s.isDone ) ) {
 			// Execute the function immediately
 			fn.call( document, jQuery );
 
 		// Otherwise, remember the function for later
-		} else if ( readyList ) {
-			// Add the function to the wait list
-			readyList.push( fn );
+		} else {
+                    // readyList could have been cleared for the initial
+                    // page load, but if scripts are loaded via require after
+                    // page load, then need to allow for other ready callbacks
+                    // to be registered that indicate those scripts after page
+                    // load have finished loading.
+                    if ( !readyList ) {
+                        readyList = [];
+                    }
+		    // Add the function to the wait list
+		    readyList.push( fn );
 		}
 
 		return this;
@@ -371,24 +386,31 @@ jQuery.extend({
 			// Remember that the DOM is ready
 			jQuery.isReady = true;
 
-			// If there are functions bound, to execute
-			if ( readyList ) {
-				// Execute all of them
-				var fn, i = 0;
-				while ( (fn = readyList[ i++ ]) ) {
-					fn.call( document, jQuery );
-				}
-
-				// Reset the list of functions
-				readyList = null;
-			}
-
-			// Trigger any bound ready events
-			if ( jQuery.fn.triggerHandler ) {
-				jQuery( document ).triggerHandler( "ready" );
-			}
+			jQuery.callReady();
 		}
 	},
+
+        // Calls ready callbacks, can be triggered by require script loading.
+        callReady: function() {
+            if ( jQuery.isReady && (!useRequire || require.s.isDone) ) {
+                // If there are functions bound, to execute
+                if ( readyList ) {
+                        // Execute all of them
+                        var fn, i = 0;
+                        while ( (fn = readyList[ i++ ]) ) {
+                                fn.call( document, jQuery );
+                        }
+
+                        // Reset the list of functions
+                        readyList = null;
+                }
+
+                // Trigger any bound ready events
+                if ( jQuery.fn.triggerHandler ) {
+                        jQuery( document ).triggerHandler( "ready" );
+                }
+            }
+        },
 	
 	bindReady: function() {
 		if ( readyBound ) {
@@ -816,5 +838,20 @@ function doScrollCheck() {
 
 // Expose jQuery to the global object
 window.jQuery = window.$ = jQuery;
+
+// Integrate with require
+if (useRequire) {
+    // Register script load completion callback
+    require.callReady = function() {
+        // If require has its own ready callback functionality, call it.
+        if ( requireReadyCallback ) {
+            requireReadyCallback();
+        }
+        jQuery.callReady();
+    };
+
+    // Register jQuery as a module
+    require.def("jquery", function() { return jQuery; });
+}
 
 })();

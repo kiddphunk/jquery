@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>requireready test</title>
+
+    <script src='../dist/jquery.js' type='text/javascript'></script>
+    <script type="text/javascript">
+        require({
+	    baseUrl: "./data/require/"    
+	  },
+	  ["require", "simple", "dimple", "func"],
+	  function(require, simple, dimple, func) {
+	    console.log('Color is "blue" ? ' + simple.color);
+	    console.log('Color is "dimple-blue" ? ' + dimple.color);
+	    console.log('Function return is "You called a function" ? ' + func());
+          }
+	);
+
+        jQuery(function() {
+	    console.log('Color is "dimple-blue" after ready ? ' + require("dimple").color);
+        });
+    </script>
+</head>
+<body>
+    <h1>requireready test</h1>
+    <p>Tests interaction between require() and jQuery.ready() to make sure
+    jQuery.ready() does not fire its callbacks before the modules finish loading.</p>
+    
+    <p>There should be 4 console log calls.</p>
+</body>
+</html>
